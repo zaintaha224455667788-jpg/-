@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#073c20">
+<meta name="description" content="نجوم الملعب - لعبة كرة قدم خفيفة قابلة للعب على الهاتف">
+<link rel="manifest" href="manifest.webmanifest">
+<title>نجوم الملعب</title>
+<style>
+:root{--green:#0c6a32;--dark:#062718;--gold:#ffd34f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:none}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#123d24;color:#fff;font-family:system-ui,Tahoma,Arial,sans-serif;user-select:none}
+canvas{display:block;width:100vw;height:100dvh}
+#hud{position:fixed;top:max(10px,env(safe-area-inset-top));left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+.pill{background:#061c12e8;border:1px solid #ffffff4d;border-radius:14px;padding:8px 12px;box-shadow:0 3px 12px #0003;font-weight:850;font-size:14px}.small{font-size:11px;font-weight:500;opacity:.8;margin-top:2px}
+#score{text-align:center;min-width:125px;font-size:17px}#clock{font-variant-numeric:tabular-nums}
+#msg{position:fixed;top:82px;left:50%;transform:translateX(-50%);background:#061c12dd;border:1px solid #ffffff22;border-radius:12px;padding:8px 13px;white-space:nowrap;font-weight:750;font-size:13px;pointer-events:none;max-width:92vw;text-align:center}
+#controls{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:12px;right:12px;display:flex;justify-content:space-between;align-items:end;pointer-events:none}
+.cluster,.actions{display:grid;gap:7px;pointer-events:auto}.cluster{grid-template-columns:54px 54px 54px;grid-template-rows:54px 54px}.cluster button,.actions button,#pause{border:1px solid #ffffff70;color:white;background:#08291ddd;border-radius:16px;font-size:21px;font-weight:900;box-shadow:0 4px 0 #03170e;min-width:54px;min-height:54px}.cluster .up{grid-column:2}.cluster .left{grid-column:1;grid-row:2}.cluster .down{grid-column:2;grid-row:2}.cluster .right{grid-column:3;grid-row:2}
+.actions button{font-size:15px;padding:0 13px;min-width:86px}.actions .shoot{background:#b52a2a}.actions .pass{background:#1556a5}.actions .switch{background:#5d3ca1}button:active{filter:brightness(1.25);transform:translateY(2px)}
+#pause{position:fixed;top:78px;right:12px;min-width:44px;min-height:40px;font-size:17px;pointer-events:auto;border-radius:12px}
+#start,#result{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(#062714bb,#03180df2);padding:20px;z-index:5}
+.card{max-width:430px;width:100%;max-height:92dvh;overflow:auto;background:linear-gradient(145deg,#10442a,#082719);border:1px solid #ffffff3b;border-radius:24px;padding:24px;text-align:center;box-shadow:0 20px 70px #0007}
+h1{margin:0 0 7px;font-size:31px}p{line-height:1.65;color:#d5e8db;font-size:14px}.primary{border:0;border-radius:14px;background:var(--gold);color:#142719;font-weight:950;font-size:18px;padding:13px 25px;width:100%;margin-top:8px}
+select{width:100%;padding:12px;border-radius:12px;background:#f2f5f1;color:#12301e;font-size:16px;margin:5px 0 12px;border:0}
+#result{display:none}.stat{display:flex;justify-content:space-around;margin:15px 0;font-weight:800}.hint{font-size:12px;opacity:.75}
+@media(max-width:380px){.cluster{grid-template-columns:48px 48px 48px;grid-template-rows:48px 48px}.cluster button{min-width:48px;min-height:48px}.actions button{min-width:76px;padding:0 8px}.pill{padding:7px 9px}}
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="ملعب نجوم الملعب"></canvas>
+<div id="hud">
+ <div class="pill">⭐ نجوم الملعب<div class="small" id="teamLabel">الأزرق ضد الأحمر</div></div>
+ <div class="pill" id="score">🔵 0 - 0 🔴<div class="small">النتيجة</div></div>
+ <div class="pill" id="clock">⏱ 90<div class="small">ثانية</div></div>
+</div>
+<div id="msg">اقترب من الكرة ثم سدّد باتجاه المرمى البعيد</div>
+<button id="pause" aria-label="إيقاف مؤقت">Ⅱ</button>
+<div id="controls">
+ <div class="cluster"><button class="up" data-dir="up">▲</button><button class="left" data-dir="left">◀</button><button class="down" data-dir="down">▼</button><button class="right" data-dir="right">▶</button></div>
+ <div class="actions"><button class="shoot" id="shoot">⚽ تسديد</button><button class="pass" id="pass">↗ تمرير</button><button class="switch" id="sprint">⚡ سرعة</button></div>
+</div>
+<div id="start"><div class="card">
+ <div style="font-size:48px">⚽🏟️</div><h1>نجوم الملعب</h1>
+ <p>لعبة كرة قدم خفيفة للهاتف. تحكّم باللاعب، راوغ المنافس، وسجّل أكبر عدد من الأهداف قبل نهاية المباراة.</p>
+ <label for="team">اختر لون فريقك</label><select id="team"><option value="blue">الأزرق 🔵</option><option value="green">الأخضر 🟢</option><option value="gold">الأصفر 🟡</option></select>
+ <label for="level">مستوى المنافس</label><select id="level"><option value="easy">سهل</option><option value="normal" selected>متوسط</option><option value="hard">صعب</option></select>
+ <button class="primary" id="play">ابدأ المباراة</button><p class="hint">يمكن تثبيت اللعبة كتطبيق ويب من قائمة المتصفح إذا كان متاحًا.</p>
+ </div></div>
+<div id="result"><div class="card"><div style="font-size:44px">🏆</div><h1 id="resultTitle">انتهت المباراة</h1><div class="stat" id="finalScore"></div><p id="resultText"></p><button class="primary" id="again">إعادة المباراة</button><button class="primary" style="background:#dce9df" id="menu">القائمة الرئيسية</button></div></div>
+<script>
+(()=> {
+const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight,dpr=1,started=false,paused=false,ended=false,scoreA=0,scoreB=0,remaining=90,msgTimer=0,elapsed=0,sprint=false,level='normal',playerColor='#1766ed';
+const keys={up:false,down:false,left:false,right:false};
+const p={x:.5,z:.76,vx:0,vz:0,team:'blue',anim:0},e={x:.5,z:.28,vx:0,vz:0,team:'red',anim:0},keeper={x:.5,z:.055};
+const ball={x:.5,z:.70,vx:0,vz:0,spin:0};
+const palette={blue:'#1766ed',green:'#0bbd67',gold:'#e7b92c'};
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+function msg(s,t=2.3){document.querySelector('#msg').textContent=s;msgTimer=t}
+function project(x,z,y=0){let top=H*.115,bottom=H*.91,depth=(z+.05)/1.1,half=W*.43*(.34+.66*depth);return{x:W/2+(x-.5)*2*half,y:top+depth*(bottom-top)-y*(.4+.6*depth),scale:.3+.8*depth}}
+function line(a,b,c,d,color='#fff',width=2){ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}
+function field(){
+ ctx.fillStyle='#73b8e8';ctx.fillRect(0,0,W,H);
+ let tl=project(0,.01),tr=project(1,.01),br=project(1,1),bl=project(0,1);ctx.beginPath();ctx.moveTo(tl.x,tl.y);ctx.lineTo(tr.x,tr.y);ctx.lineTo(br.x,br.y);ctx.lineTo(bl.x,bl.y);ctx.closePath();ctx.fillStyle='#12672f';ctx.fill();
+ for(let i=0;i<10;i++){let z1=i/10,z2=(i+1)/10,a=project(0,z1),b=project(1,z1),c=project(1,z2),d=project(0,z2);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();ctx.fillStyle=i%2?'#18803b':'#11662f';ctx.fill()}
+ ctx.strokeStyle='#edf8ef';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(tl.x,tl.y);ctx.lineTo(tr.x,tr.y);ctx.lineTo(br.x,br.y);ctx.lineTo(bl.x,bl.y);ctx.closePath();ctx.stroke();
+ let l=project(0,.5),r=project(1,.5);line(l.x,l.y,r.x,r.y);
+ let cc=project(.5,.5);ctx.beginPath();ctx.ellipse(cc.x,cc.y,W*.096,H*.047,0,0,Math.PI*2);ctx.stroke();
+ for(const z of [.035,.965]){let x1=project(.32,z).x,x2=project(.68,z).x,y=project(0,z).y,z2=z<.5?.16:.84;line(x1,y,x2,y);line(x1,y,project(.32,z2).x,project(.32,z2).y);line(x2,y,project(.68,z2).x,project(.68,z2).y);ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.strokeRect(x1,y-15*(.5+z),x2-x1,15*(.5+z))}
+ // goals with net-like crosshatch
+ for(const z of [.018,.982]){const q1=project(.32,z),q2=project(.68,z),h=17*(.5+z);ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.strokeRect(q1.x,q1.y-h,q2.x-q1.x,h);ctx.strokeStyle='#c9e0d2';ctx.lineWidth=1;for(let i=1;i<7;i++){let xx=q1.x+(q2.x-q1.x)*i/7;line(xx,q1.y-h,xx,q1.y,'#d9e8dd',.6)}}
+}
+function drawPlayer(o){
+ const q=project(o.x,o.z),s=q.scale,run=Math.sin(o.anim*13)*2.5*s;
+ ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(q.x,q.y+4*s,13*s,5*s,0,0,Math.PI*2);ctx.fill();
+ const shirt=o===p?playerColor:'#d72b36';
+ ctx.strokeStyle='#17202a';ctx.lineWidth=5*s;ctx.lineCap='round';
+ ctx.beginPath();ctx.moveTo(q.x-4*s,q.y-7*s);ctx.lineTo(q.x-5*s+run,q.y+5*s);ctx.moveTo(q.x+4*s,q.y-7*s);ctx.lineTo(q.x+5*s-run,q.y+5*s);ctx.stroke();
+ ctx.fillStyle=shirt;ctx.beginPath();ctx.ellipse(q.x,q.y-15*s,10*s,14*s,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#efc59c';ctx.beginPath();ctx.arc(q.x,q.y-33*s,7*s,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(8,10*s+2)}px Arial`;ctx.textAlign='center';ctx.fillText(o===p?'10':o===keeper?'1':'9',q.x,q.y-11*s);
+}
+function drawKeeper(){const q=project(keeper.x,keeper.z),s=q.scale;ctx.fillStyle='#0004';ctx.beginPath();ctx.ellipse(q.x,q.y+3,14*s,4*s,0,0,7);ctx.fill();ctx.fillStyle='#f3c62f';ctx.fillRect(q.x-10*s,q.y-24*s,20*s,19*s);ctx.fillStyle='#efc59c';ctx.beginPath();ctx.arc(q.x,q.y-31*s,7*s,0,7);ctx.fill();ctx.strokeStyle='#f3c62f';ctx.lineWidth=4*s;ctx.beginPath();ctx.moveTo(q.x-8*s,q.y-19*s);ctx.lineTo(q.x-16*s,q.y-12*s);ctx.moveTo(q.x+8*s,q.y-19*s);ctx.lineTo(q.x+16*s,q.y-12*s);ctx.stroke()}
+function drawBall(){const q=project(ball.x,ball.z),r=3.5+4.5*q.scale;ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(q.x,q.y+3,r*1.4,r*.5,0,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(q.x,q.y-r*.25,r,0,7);ctx.fill();ctx.strokeStyle='#1a2520';ctx.lineWidth=1;ctx.stroke();ctx.fillStyle='#222';ctx.beginPath();ctx.arc(q.x,q.y-r*.25,r*.3,0,7);ctx.fill()}
+function updateScore(){document.querySelector('#score').innerHTML=`${scoreA>scoreB?'🔵':'🔵'} ${scoreA} - ${scoreB} 🔴<div class="small">النتيجة</div>`}
+function resetBall(){ball.x=.5;ball.z=.70;ball.vx=ball.vz=0;p.x=.5;p.z=.76;e.x=.5;e.z=.28;keeper.x=.5}
+function kick(power){if(Math.hypot(ball.x-p.x,ball.z-p.z)>.16){msg('اقترب من الكرة أولاً!');return}let dx=(ball.x-.5)*.35;ball.vx=dx;ball.vz=-power;ball.spin+=1;msg(power>.55?'تسديدة قوية! ⚽':'تمريرة إلى الأمام!')}
+function goal(home){if(home){scoreA++;msg('جوووول! أحسنت 🎉',3)}else{scoreB++;msg('هدف للفريق الأحمر!',3)}updateScore();resetBall()}
+function update(dt){
+ elapsed+=dt;remaining=Math.max(0,90-elapsed);document.querySelector('#clock').innerHTML=`⏱ ${Math.ceil(remaining)}<div class="small">ثانية</div>`;
+ const speed=(sprint?.48:.32),dx=(keys.right?1:0)-(keys.left?1:0),dz=(keys.down?1:0)-(keys.up?1:0),len=Math.hypot(dx,dz)||1;
+ p.x=Math.max(.035,Math.min(.965,p.x+dx/len*speed*dt));p.z=Math.max(.07,Math.min(.94,p.z+dz/len*speed*dt));if(dx||dz)p.anim+=dt;
+ const difficulty=level==='easy'?.12:level==='hard'?.28:.19;
+ let ex=ball.x-e.x,ez=ball.z-e.z,el=Math.hypot(ex,ez)||1;e.x=Math.max(.06,Math.min(.94,e.x+ex/el*difficulty*dt));e.z=Math.max(.12,Math.min(.87,e.z+ez/el*difficulty*dt));e.anim+=dt;
+ keeper.x+=(ball.x-keeper.x)*Math.min(1,dt*(level==='hard'?4:2));
+ if(Math.hypot(ball.x-p.x,ball.z-p.z)<.105&&(dx||dz)){ball.vx=dx/len*.44;ball.vz=dz/len*.44}
+ ball.x+=ball.vx*dt;ball.z+=ball.vz*dt;ball.vx*=Math.pow(.1,dt);ball.vz*=Math.pow(.1,dt);ball.spin+=dt*ball.vz;
+ if(ball.x<.025||ball.x>.975){ball.vx*=-.7;ball.x=Math.max(.025,Math.min(.975,ball.x))}
+ // goalkeeper saves shots near the far goal
+ if(ball.z<.085&&ball.z>.025&&Math.abs(ball.x-keeper.x)<.12&&Math.abs(ball.vz)>.18){ball.vz=Math.abs(ball.vz)*.45;ball.vx+=(ball.x-keeper.x)*1.4;msg('تصدي الحارس!')}
+ if(ball.z<.035||ball.z>.965){if(ball.x>.32&&ball.x<.68){goal(ball.z<.035)}else{ball.vz*=-.65;ball.z=ball.z<.035?.04:.96}}
+ if(Math.hypot(ball.x-e.x,ball.z-e.z)<.065){ball.vx+=(ball.x-e.x)*.8;ball.vz+=.16}
+ if(remaining<=0&&!ended){ended=true;started=false;document.querySelector('#resultTitle').textContent=scoreA>scoreB?'فوز رائع! 🏆':scoreA<scoreB?'حاول مرة أخرى!':'تعادل!';document.querySelector('#finalScore').textContent=`🔵 ${scoreA}  -  ${scoreB} 🔴`;document.querySelector('#resultText').textContent='انتهت المباراة. يمكنك إعادة اللعب ومحاولة تسجيل أهداف أكثر.';document.querySelector('#result').style.display='flex'}
+ if(msgTimer>0)msgTimer-=dt;
+}
+function render(){ctx.clearRect(0,0,W,H);field();drawPlayer(e);drawKeeper();drawBall();drawPlayer(p);if(paused&&started){ctx.fillStyle='#03170dbb';ctx.fillRect(0,0,W,H);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 34px Arial';ctx.fillText('إيقاف مؤقت',W/2,H/2)}}
+let last=performance.now();function loop(now){const dt=Math.min((now-last)/1000,.04);last=now;if(started&&!paused)update(dt);render();requestAnimationFrame(loop)}requestAnimationFrame(loop);
+function bindDirection(b){const k=b.dataset.dir;const down=e=>{e.preventDefault();keys[k]=true},up=e=>{e.preventDefault();keys[k]=false};b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up)}
+document.querySelectorAll('[data-dir]').forEach(bindDirection);
+const mapping={ArrowUp:'up',w:'up',ArrowDown:'down',s:'down',ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right'};addEventListener('keydown',e=>{if(mapping[e.key])keys[mapping[e.key]]=true;if(e.key===' '){e.preventDefault();if(started)kick(.78)}});addEventListener('keyup',e=>{if(mapping[e.key])keys[mapping[e.key]]=false});
+document.querySelector('#shoot').addEventListener('pointerdown',e=>{e.preventDefault();if(started&&!paused)kick(.78)});
+document.querySelector('#pass').addEventListener('pointerdown',e=>{e.preventDefault();if(started&&!paused)kick(.46)});
+document.querySelector('#sprint').addEventListener('pointerdown',e=>{e.preventDefault();sprint=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>document.querySelector('#sprint').addEventListener(ev,()=>sprint=false));
+document.querySelector('#pause').onclick=()=>{if(!started)return;paused=!paused;document.querySelector('#pause').textContent=paused?'▶':'Ⅱ';msg(paused?'المباراة متوقفة مؤقتًا':'استكمل اللعب')};
+function begin(){scoreA=scoreB=0;elapsed=0;remaining=90;ended=false;paused=false;started=true;sprint=false;level=document.querySelector('#level').value;playerColor=palette[document.querySelector('#team').value]||palette.blue;document.querySelector('#teamLabel').textContent='فريقك ضد الأحمر';document.querySelector('#result').style.display='none';document.querySelector('#start').style.display='none';document.querySelector('#pause').textContent='Ⅱ';updateScore();resetBall();msg('انطلق! تحرّك نحو الكرة وسدّد إلى المرمى البعيد')}
+document.querySelector('#play').onclick=begin;document.querySelector('#again').onclick=begin;document.querySelector('#menu').onclick=()=>{started=false;paused=false;document.querySelector('#result').style.display='none';document.querySelector('#start').style.display='flex'};
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
+</script></body></html>
